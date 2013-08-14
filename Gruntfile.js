@@ -60,6 +60,15 @@ module.exports = function(grunt) {
           classpath: "tmp.license.Singleton",
           license: "test/fixtures/license.txt"
         }
+      },
+      root: {
+        src: ['test/fixtures/library.js'],
+        dest: 'tmp/root.js',
+        options: {
+          singleton: true,
+          exports: "myGlobal",
+          classpath: "RootSingleton"
+        }
       }
     },
 

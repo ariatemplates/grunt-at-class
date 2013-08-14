@@ -18,7 +18,7 @@
 var grunt = require('grunt');
 var vm = require('vm');
 
-function runInContext (code) {
+function runInContext (code, memCheck) {
   var sandbox = {
     Aria : {
       classDefinition : function (definition) {
@@ -32,13 +32,32 @@ function runInContext (code) {
         }
         var context = sandbox.Aria.nspace(contextNamespace);
 
+        if (!definition.$constructor) {
+          definition.$constructor = function () {};
+        }
+
+        // This looks pretty much like what we do in Aria.memCheckMode
+        var Cnstrctr = !memCheck ? definition.$constructor : function () {
+          definition.$constructor.apply(this, arguments);
+        };
+
         if (definition.$singleton) {
-          context[classname] = new definition.$constructor();
+          context[classname] = new Cnstrctr();
         } else {
-          context[classname] = definition.$constructor;
+          context[classname] = Cnstrctr;
+        }
+
+        context[classname].$package = contextNamespace;
+        context[classname].$class = classname;
+
+        if (definition.$onload) {
+          definition.$onload.call(context[classname], definition, context[classname]);
         }
       },
       nspace : function (path) {
+        if (!path) {
+          return sandbox;
+        }
         var segments = path.split(".");
         var base = sandbox;
         segments.forEach(function (name) {
@@ -69,6 +88,17 @@ exports.at_class = {
 
     test.done();
   },
+  singletonMemCheck: function(test) {
+    test.expect(2);
+
+    var actual = grunt.file.read("tmp/singleton.js").toString();
+    test.ok(/\$singleton\s*\:\s*true/.test(actual), "Expecting to find $singleton:true");
+
+    var sandbox = runInContext(actual, true);
+    test.equal(sandbox.tmp.Singleton.getIt(), 12);
+
+    test.done();
+  },
   instance: function(test) {
     test.expect(3);
 
@@ -76,6 +106,22 @@ exports.at_class = {
     test.ok(!/\$singleton/.test(actual), "Expecting not to be a singleton");
 
     var Constructor = runInContext(actual).tmp.Instance;
+    var instanceOne = new Constructor(1);
+    var instanceFour = new Constructor(4);
+    instanceOne.increase();
+    instanceFour.twice();
+    test.equal(instanceOne.getValue(), 2);
+    test.equal(instanceFour.getValue(), 8);
+
+    test.done();
+  },
+  instanceMemCheck: function(test) {
+    test.expect(3);
+
+    var actual = grunt.file.read("tmp/instance.js").toString();
+    test.ok(!/\$singleton/.test(actual), "Expecting not to be a singleton");
+
+    var Constructor = runInContext(actual, true).tmp.Instance;
     var instanceOne = new Constructor(1);
     var instanceFour = new Constructor(4);
     instanceOne.increase();
@@ -96,6 +142,15 @@ exports.at_class = {
     var singleton = runInContext(actual).tmp.license.Singleton;
     singleton.multiply(2);
     test.equal(singleton.getIt(), 24);
+
+    test.done();
+  },
+  rootSingleton: function (test) {
+    test.expect(1);
+
+    var actual = grunt.file.read("tmp/root.js").toString();
+    var sandbox = runInContext(actual);
+    test.equal(sandbox.RootSingleton.getIt(), 12);
 
     test.done();
   }
