@@ -1,7 +1,7 @@
 {
   "name": "grunt-at-class",
   "description": "Wrap any JavaScript file in an Aria Templates class definition.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "homepage": "https://github.com/ariatemplates/grunt-at-class",
   "author": {
     "name": "Aria Templates",
